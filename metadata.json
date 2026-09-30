@@ -1,0 +1,6 @@
+{
+  "name": "Groundtruth — Property Hazard Reports",
+  "description": "Comprehensive property hazard screening reports covering FEMA flood zones, hurricane wind exposure, wildfire, earthquake, tornado, and location-level sinkhole risk with interactive hazard maps.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

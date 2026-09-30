@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Groundtruth — Property Hazard Reports</title>
+  <meta name="description" content="Comprehensive property hazard screening reports covering FEMA flood zones, hurricane wind exposure, wildfire, earthquake, tornado, and location-level sinkhole risk with interactive hazard maps." />
+  <meta property="og:title" content="Groundtruth — Property Hazard Reports" />
+  <meta property="og:description" content="Comprehensive property hazard screening reports covering FEMA flood zones, hurricane wind exposure, wildfire, earthquake, tornado, and location-level sinkhole risk with interactive hazard maps." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #182129;
+      --ink-soft: #4c5a62;
+      --ink-faint: #8b978d;
+      --paper: #EDF0E6;
+      --paper-raised: #F8F9F2;
+      --line: #C9CFC0;
+      --line-soft: #DBDFD2;
+      --amber: #AD6E28;
+      --amber-soft: #E4CDA6;
+      --flood: #2C5F74;
+      --flood-soft: #CBDCE1;
+      --risk-high: #96382A;
+      --risk-mod: #AD6E28;
+      --risk-low: #3C6E52;
+      --serif: 'Spectral', Georgia, serif;
+      --mono: 'IBM Plex Mono', Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.55;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(24,33,41,0.035) 0px, rgba(24,33,41,0.035) 1px, transparent 1px, transparent 96px),
+        repeating-linear-gradient(90deg, rgba(24,33,41,0.035) 0px, rgba(24,33,41,0.035) 1px, transparent 1px, transparent 96px);
+    }
+    a { color: var(--flood); }
+    .wrap { max-width: 890px; margin: 0 auto; padding: 0 28px; }
+
+    /* ---------- top bar ---------- */
+    .topbar {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 26px 0 18px; border-bottom: 1px solid var(--line);
+    }
+    .brand { font-family: var(--serif); font-weight: 600; font-size: 20px; letter-spacing: 0.2px; }
+    .brand span { color: var(--amber); font-style: italic; font-weight: 400; }
+    .tagline { font-size: 13px; color: var(--ink-soft); }
+
+    /* ---------- hero / search ---------- */
+    .hero { padding: 64px 0 40px; }
+    .hero h1 {
+      font-size: 42px; font-weight: 600; line-height: 1.15; margin: 0 0 18px; max-width: 9.5em;
+    }
+    .hero p.lede { font-size: 17px; color: var(--ink-soft); max-width: 38em; margin: 0 0 36px; }
+
+    .search-row { display: flex; gap: 0; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
+    .search-row input {
+      flex: 1; border: none; background: transparent; font-family: var(--serif);
+      font-size: 22px; color: var(--ink); padding: 8px 4px; outline: none;
+    }
+    .search-row input::placeholder { color: var(--ink-faint); font-style: italic; }
+    .go-btn {
+      border: none; background: var(--ink); color: var(--paper-raised);
+      font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em;
+      padding: 0 22px; cursor: pointer; transition: background .15s ease;
+    }
+    .go-btn:hover { background: var(--amber); }
+    .go-btn:disabled { background: var(--line); cursor: default; }
+
+    .subfields { display: flex; gap: 28px; margin-top: 14px; flex-wrap: wrap; }
+    .subfield { display: flex; flex-direction: column; gap: 4px; }
+    .subfield label { font-size: 12px; color: var(--ink-soft); }
+    .subfield input, .subfield select {
+      font-family: var(--mono); font-size: 14px; border: 1px solid var(--line);
+      background: var(--paper-raised); padding: 7px 9px; width: 150px; color: var(--ink);
+    }
+
+    .status-line { margin-top: 18px; font-family: var(--mono); font-size: 13px; color: var(--ink-soft); min-height: 20px; }
+    .status-line.err { color: var(--risk-high); }
+
+    /* ---------- report ---------- */
+    #report { display: none; padding: 36px 0 90px; }
+    .report-head {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      border-bottom: 1px solid var(--ink); padding-bottom: 16px; margin-bottom: 8px;
+    }
+    .report-head .addr { font-size: 26px; font-weight: 600; max-width: 24em; }
+    .report-head .meta { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); text-align: right; }
+    .pdf-btn {
+      margin-top: 18px; border: 1px solid var(--ink); background: transparent; color: var(--ink);
+      font-family: var(--mono); font-size: 12.5px; padding: 9px 16px; cursor: pointer;
+      transition: all .15s ease;
+    }
+    .pdf-btn:hover { background: var(--ink); color: var(--paper-raised); }
+    .new-search {
+      font-family: var(--mono); font-size: 12px; color: var(--ink-soft); background: none; border: none;
+      text-decoration: underline; cursor: pointer; padding: 0; margin-left: 14px;
+    }
+
+    /* summary strip */
+    .strip { display: flex; border: 1px solid var(--line); margin: 28px 0 8px; background: var(--paper-raised); }
+    .strip .cell { flex: 1; padding: 18px 16px; position: relative; }
+    .strip .cell + .cell { border-left: 1px solid var(--line); }
+    .strip .figure { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+    .strip .label { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+    .strip .tag {
+      display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: 10.5px;
+      padding: 2px 6px; border-radius: 2px;
+    }
+    .tag.high { background: #F1D9D2; color: var(--risk-high); }
+    .tag.mod { background: #F0E1C8; color: var(--risk-mod); }
+    .tag.low { background: #D6E7DB; color: var(--risk-low); }
+    .tag.unk { background: var(--line-soft); color: var(--ink-soft); }
+
+    section.block { padding: 34px 0; border-bottom: 1px solid var(--line-soft); }
+    section.block:last-of-type { border-bottom: none; }
+    .block h2 {
+      font-size: 19px; font-family: var(--mono); font-weight: 500; letter-spacing: 0.01em;
+      color: var(--ink-soft); margin: 0 0 18px;
+    }
+    .block h2 .n { color: var(--amber); margin-right: 8px; }
+    .block h3 { font-size: 22px; margin: 0 0 10px; font-weight: 600; }
+    .block p { margin: 0 0 12px; color: var(--ink-soft); max-width: 58em; }
+    .block p.note { font-size: 13.5px; font-style: italic; color: var(--ink-faint); margin-top: 16px; }
+
+    .datarow { display: flex; gap: 36px; flex-wrap: wrap; margin: 18px 0; }
+    .datum .k { font-size: 12px; color: var(--ink-faint); }
+    .datum .v { font-family: var(--mono); font-size: 18px; margin-top: 2px; color: var(--ink); }
+
+    .bar-scale { display: flex; height: 8px; border-radius: 2px; overflow: hidden; margin: 2px 0 6px; border: 1px solid var(--line); }
+    .bar-scale span { flex: 1; }
+    .bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-faint); font-family: var(--mono); }
+    .marker-row { position: relative; height: 24px; margin-top: 14px; }
+    .marker {
+      position: absolute; top: 0; transform: translateX(-50%);
+      font-family: var(--mono); font-size: 11px; color: var(--ink);
+    }
+    .marker::after { content: "▾"; display: block; text-align: center; color: var(--ink); }
+
+    .timeline { border-left: 2px solid var(--line); margin-left: 4px; padding-left: 22px; }
+    .tl-item { position: relative; padding-bottom: 20px; }
+    .tl-item::before {
+      content: ""; position: absolute; left: -27px; top: 5px; width: 9px; height: 9px;
+      border-radius: 50%; background: var(--paper); border: 2px solid var(--amber);
+    }
+    .tl-item .yr { font-family: var(--mono); font-size: 13px; color: var(--amber); }
+    .tl-item .ttl { font-size: 16px; margin: 2px 0 2px; font-weight: 500; }
+    .tl-item .sub { font-size: 13.5px; color: var(--ink-soft); }
+    .no-events { color: var(--ink-faint); font-style: italic; }
+
+    /* Map panels */
+    .map-panels { display: flex; gap: 12px; margin: 16px 0 6px; flex-wrap: wrap; }
+    .hazard-map-box {
+      position: relative; height: 440px; flex: 1 1 100%; border: 1px solid var(--line);
+      background: var(--paper-raised); overflow: hidden;
+    }
+    .hazard-map-box img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+    .map-marker-pin {
+      position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+      border-radius: 50%; background: #1D4ED8; border: 2.5px solid var(--paper-raised);
+      box-shadow: 0 0 0 2px #1D4ED8, 0 0 14px rgba(29, 78, 216, 0.7);
+      display: none; z-index: 4;
+      animation: pulseBlueMarker 2.2s infinite;
+    }
+    @keyframes pulseBlueMarker {
+      0% { transform: scale(1); box-shadow: 0 0 0 2px #1D4ED8, 0 0 8px rgba(29, 78, 216, 0.6); }
+      50% { transform: scale(1.18); box-shadow: 0 0 0 4px #1D4ED8, 0 0 18px rgba(29, 78, 216, 0.85); }
+      100% { transform: scale(1); box-shadow: 0 0 0 2px #1D4ED8, 0 0 8px rgba(29, 78, 216, 0.6); }
+    }
+    .map-placeholder {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+      color: var(--ink-faint); font-family: var(--mono); font-size: 12.5px; padding: 20px; line-height: 1.6;
+    }
+    .map-caption { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
+    .map-caption a { color: var(--flood); }
+
+    /* Map Toolbar */
+    .map-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--paper-raised); border: 1px solid var(--line); border-bottom: none;
+      padding: 8px 12px; font-family: var(--mono); font-size: 11.5px;
+    }
+    .map-toolbar-group { display: flex; gap: 6px; align-items: center; }
+    .map-pill-btn {
+      background: transparent; border: 1px solid var(--line); padding: 3px 9px;
+      font-family: var(--mono); font-size: 11px; cursor: pointer; color: var(--ink-soft);
+      border-radius: 2px; transition: all .15s ease;
+    }
+    .map-pill-btn:hover { background: var(--line-soft); color: var(--ink); }
+    .map-pill-btn.active { background: var(--ink); color: var(--paper-raised); border-color: var(--ink); }
+
+    /* Map Legend Overlay */
+    .map-legend-overlay {
+      position: absolute; bottom: 12px; right: 12px; background: rgba(248,249,242,0.97);
+      border: 1px solid var(--line); padding: 10px 14px; font-family: var(--mono); font-size: 11px;
+      color: var(--ink); z-index: 5; border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+      display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+      min-width: 235px; width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
+      overflow: hidden;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 9px; line-height: 1.35;
+      white-space: normal; word-break: normal;
+    }
+    .legend-item span:last-child {
+      display: inline-block; white-space: normal;
+    }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .legend-box { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+    @media (max-width: 640px) {
+      .map-legend-overlay {
+        font-size: 10px; padding: 8px 10px; min-width: 195px; gap: 5px;
+        bottom: 8px; right: 8px; max-width: calc(100% - 16px);
+      }
+      .legend-item { gap: 6px; }
+      .legend-dot, .legend-box { width: 9px; height: 9px; }
+    }
+
+    /* Interactive Tooltip */
+    #sinkhole-tooltip {
+      position: absolute; display: none; z-index: 10; background: var(--paper-raised);
+      border: 1.5px solid var(--ink); padding: 12px 14px; border-radius: 3px;
+      box-shadow: 0 8px 24px rgba(24,33,41,0.22); pointer-events: auto; max-width: 310px;
+      animation: tipFadeIn .15s ease-out;
+    }
+    @keyframes tipFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .tip-close-btn {
+      background: transparent; border: none; font-size: 16px; line-height: 1;
+      cursor: pointer; color: var(--ink-soft); padding: 1px 5px; border-radius: 2px;
+    }
+    .tip-close-btn:hover { background: var(--line-soft); color: var(--ink); }
+
+    /* Sinkhole Table */
+    .sinkhole-table-wrap {
+      overflow-x: auto; margin: 18px 0 10px; border: 1px solid var(--line); background: var(--paper-raised);
+    }
+    .sinkhole-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .sinkhole-table th {
+      background: var(--paper); padding: 9px 8px; font-family: var(--mono); font-size: 11px;
+      color: var(--ink-soft); border-bottom: 1px solid var(--line); font-weight: 500;
+    }
+
+    .ins-range { border: 1px solid var(--line); background: var(--paper-raised); padding: 20px 22px; margin: 14px 0; }
+    .ins-range .lbl { font-size: 13px; color: var(--ink-soft); }
+    .ins-range .amt { font-family: var(--mono); font-size: 26px; margin: 4px 0 8px; }
+    .ins-total { border: 1.5px solid var(--ink); background: var(--paper-raised); padding: 22px 24px; margin-top: 8px; }
+    .ins-total .lbl { font-size: 13px; color: var(--ink-soft); }
+    .ins-total .amt { font-family: var(--mono); font-size: 32px; margin: 6px 0; }
+
+    footer.disclaim {
+      font-size: 12.5px; color: var(--ink-faint); border-top: 1px solid var(--line);
+      padding-top: 20px; max-width: 60em;
+    }
+    footer.disclaim p { margin: 0 0 8px; }
+
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 32px; }
+      .strip { flex-direction: column; }
+      .strip .cell + .cell { border-left: none; border-top: 1px solid var(--line); }
+      .report-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .report-head .meta { text-align: left; }
+      .map-toolbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">Ground<span>truth</span></div>
+    <div class="tagline">Property hazard reports</div>
+  </div>
+
+  <div id="hero-section" class="hero">
+    <h1>Know the ground you're standing on before you sign.</h1>
+    <p class="lede">Enter any U.S. address to pull site-specific FEMA flood zones, hurricane wind exposure, FEMA National Risk Index ratings, and location-level sinkhole mapping — in one unified report.</p>
+
+    <div class="search-row">
+      <input id="address-input" type="text" placeholder="1200 Ocean Drive, Miami Beach, FL" autocomplete="off" />
+      <button class="go-btn" id="go-btn" onclick="runReport()">Generate report</button>
+    </div>
+    <div class="subfields">
+      <div class="subfield">
+        <label for="home-value">Est. home value</label>
+        <input id="home-value" type="text" value="350,000" inputmode="numeric" />
+      </div>
+      <div class="subfield">
+        <label for="hurricane-deductible">Hurricane deductible</label>
+        <select id="hurricane-deductible">
+          <option value="1">1% of coverage</option>
+          <option value="2" selected>2% of coverage</option>
+          <option value="3">3% of coverage</option>
+          <option value="4">4% of coverage</option>
+          <option value="5">5% of coverage</option>
+        </select>
+      </div>
+      <div class="subfield" style="flex-direction:row;align-items:center;gap:8px;padding-top:18px;">
+        <input id="home-mitigated" type="checkbox" style="width:auto;" />
+        <label for="home-mitigated" style="max-width:220px;">Newer roof / wind mitigation credits (impact windows, hip roof, clips)</label>
+      </div>
+      <div class="subfield" style="flex-direction:row;align-items:center;gap:8px;padding-top:18px;">
+        <input id="include-flood" type="checkbox" style="width:auto;" />
+        <label for="include-flood" style="max-width:230px;">Include a flood policy (auto-set by flood zone risk — override anytime)</label>
+      </div>
+    </div>
+    <div class="status-line" id="status-line"></div>
+  </div>
+
+  <div id="report">
+    <div class="report-head">
+      <div>
+        <div class="addr" id="rep-addr">—</div>
+        <button class="pdf-btn" id="pdf-btn" onclick="downloadPDF()">Download PDF report</button>
+        <button class="new-search" onclick="resetSearch()">New search</button>
+      </div>
+      <div class="meta" id="rep-meta">—</div>
+    </div>
+
+    <!-- Summary Strip -->
+    <div class="strip" id="summary-strip"></div>
+
+    <!-- 01 FEMA Flood Zone -->
+    <section class="block">
+      <h2><span class="n">01</span>FEMA Flood Zone</h2>
+      <h3 id="flood-zone-name">—</h3>
+      <p id="flood-zone-desc"></p>
+      <div class="datarow">
+        <div class="datum"><div class="k">Zone</div><div class="v" id="flood-zone-code">—</div></div>
+        <div class="datum"><div class="k">Base flood elevation</div><div class="v" id="flood-bfe">—</div></div>
+        <div class="datum"><div class="k">Coordinates</div><div class="v" id="flood-coords">—</div></div>
+      </div>
+      <div class="map-panels">
+        <div class="hazard-map-box" id="flood-map-combined-box">
+          <img id="flood-map-basemap" alt="Aerial imagery" />
+          <div id="flood-map-svg-container" style="position:absolute;inset:0;display:none;z-index:2;"></div>
+          <div class="map-marker-pin" id="flood-map-marker-aerial"></div>
+          <div class="map-placeholder" id="flood-map-aerial-placeholder">Loading map…</div>
+
+          <!-- Flood Map Legend Overlay -->
+          <div class="map-legend-overlay">
+            <div class="legend-item"><span class="legend-dot" style="background:#1D4ED8;box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #1D4ED8;"></span> <span style="font-weight:600;color:#1D4ED8;">Target Parcel</span></div>
+            <div class="legend-item"><span class="legend-box" style="background:#96382A;opacity:0.6;border:1px solid #96382A;"></span> <span>High-Risk Flood Zone (AE/VE)</span></div>
+            <div class="legend-item"><span class="legend-box" style="background:#AD6E28;opacity:0.6;border:1px solid #AD6E28;"></span> <span>0.2% Annual Chance (X500)</span></div>
+            <div class="legend-item"><span class="legend-box" style="background:#3C6E52;opacity:0.5;border:1px solid #3C6E52;"></span> <span>Minimal Risk (Zone X)</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="map-caption" id="flood-map-caption">Loading…</p>
+      <p class="note" id="flood-note"></p>
+    </section>
+
+    <!-- 02 Hurricane / Wind -->
+    <section class="block">
+      <h2><span class="n">02</span>Hurricane / Wind Exposure</h2>
+      <h3 id="wind-tier-name">—</h3>
+      <p id="wind-desc"></p>
+      <div class="datarow">
+        <div class="datum"><div class="k">Approx. distance to coast</div><div class="v" id="wind-distance">—</div></div>
+      </div>
+      <div class="marker-row" id="wind-marker"></div>
+      <div class="bar-scale" id="wind-bar"></div>
+      <div class="bar-labels"><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+      <p class="note">Estimated from regional hurricane climatology and coastal proximity bands.</p>
+    </section>
+
+    <!-- 03 Wildfire -->
+    <section class="block">
+      <h2><span class="n">03</span>Wildfire Risk</h2>
+      <h3 id="wildfire-tier-name">—</h3>
+      <p id="wildfire-desc"></p>
+      <div class="marker-row" id="wildfire-marker"></div>
+      <div class="bar-scale" id="wildfire-bar"></div>
+      <div class="bar-labels"><span>Very low</span><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+      <p class="note">Source: FEMA National Risk Index (county-level modeled exposure).</p>
+    </section>
+
+    <!-- 04 Earthquake -->
+    <section class="block">
+      <h2><span class="n">04</span>Earthquake Risk</h2>
+      <h3 id="earthquake-tier-name">—</h3>
+      <p id="earthquake-desc"></p>
+      <div class="marker-row" id="earthquake-marker"></div>
+      <div class="bar-scale" id="earthquake-bar"></div>
+      <div class="bar-labels"><span>Very low</span><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+      <p class="note">Source: FEMA National Risk Index (county-level seismic hazard).</p>
+    </section>
+
+    <!-- 05 Tornado -->
+    <section class="block">
+      <h2><span class="n">05</span>Tornado Risk</h2>
+      <h3 id="tornado-tier-name">—</h3>
+      <p id="tornado-desc"></p>
+      <div class="marker-row" id="tornado-marker"></div>
+      <div class="bar-scale" id="tornado-bar"></div>
+      <div class="bar-labels"><span>Very low</span><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+      <p class="note">Source: FEMA National Risk Index (county-wide tornado likelihood).</p>
+    </section>
+
+    <!-- 06 SINKHOLE RISK & MAP (LOCATION-LEVEL) -->
+    <section class="block" id="sinkhole-section">
+      <h2><span class="n">06</span>Sinkhole Risk &amp; Karst Geology (Location-Level)</h2>
+      <h3 id="sinkhole-tier-name">—</h3>
+      <p id="sinkhole-desc"></p>
+      <div class="marker-row" id="sinkhole-marker"></div>
+      <div class="bar-scale" id="sinkhole-bar"></div>
+      <div class="bar-labels"><span>Very low</span><span>Low</span><span>Moderate</span><span>High</span><span>Very high</span></div>
+
+      <!-- Key Location Metrics -->
+      <div class="datarow" id="sinkhole-metrics-grid" style="margin-top:22px;"></div>
+
+      <!-- Sinkhole Map Toolbar -->
+      <div class="map-toolbar" style="margin-top:20px;">
+        <div class="map-toolbar-group">
+          <span style="font-weight:600;color:var(--ink);">Sinkhole Map</span>
+          <span style="color:var(--ink-faint);">| Radius:</span>
+          <button class="map-pill-btn sh-zoom-btn" data-zoom="1" onclick="setSinkholeZoom(1.0)">1 mi</button>
+          <button class="map-pill-btn sh-zoom-btn active" data-zoom="2" onclick="setSinkholeZoom(2.0)">2 mi</button>
+          <button class="map-pill-btn sh-zoom-btn" data-zoom="5" onclick="setSinkholeZoom(5.0)">5 mi</button>
+        </div>
+        <div class="map-toolbar-group">
+          <span style="color:var(--ink-faint);">Layer:</span>
+          <button class="map-pill-btn sh-type-btn active" data-type="satellite" onclick="toggleSinkholeBasemap('satellite')">Satellite</button>
+          <button class="map-pill-btn sh-type-btn" data-type="topo" onclick="toggleSinkholeBasemap('topo')">Topographic</button>
+        </div>
+      </div>
+
+      <!-- Sinkhole Map Viewport -->
+      <div class="map-panels" style="margin-top:0;">
+        <div class="hazard-map-box" id="sinkhole-map-box">
+          <img id="sinkhole-map-basemap" alt="Sinkhole map imagery" />
+          <div id="sinkhole-map-svg-container" style="position:absolute;inset:0;display:none;z-index:2;"></div>
+          <div class="map-marker-pin" id="sinkhole-map-marker-property" style="z-index:4;"></div>
+          <div class="map-placeholder" id="sinkhole-map-placeholder">Loading location-level sinkhole map…</div>
+
+          <!-- Floating Interactive Tooltip -->
+          <div id="sinkhole-tooltip"></div>
+
+          <!-- Map Legend Overlay -->
+          <div class="map-legend-overlay">
+            <div class="legend-item"><span class="legend-dot" style="background:#1D4ED8;box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #1D4ED8;"></span> <span style="font-weight:600;color:#1D4ED8;">Target Parcel</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#DC2626;box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #DC2626;"></span> <span style="font-weight:600;color:#DC2626;">Documented Sinkhole (&lt;1 mi)</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#D97706;box-shadow:0 0 0 2px #fff, 0 0 0 3.5px #D97706;"></span> <span style="font-weight:600;color:#D97706;">Documented Sinkhole (1–5 mi)</span></div>
+            <div class="legend-item"><span class="legend-box" style="background:#AD6E28;opacity:0.4;border:1px dashed #AD6E28;"></span> <span style="color:var(--ink);">Soluble Karst Bedrock (USGS)</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="map-caption" id="sinkhole-map-caption">Loading map details…</p>
+
+      <!-- Nearby Documented Sinkholes Table -->
+      <div id="sinkhole-incidents-container" style="display:none;margin-top:24px;">
+        <h4 style="font-family:var(--mono);font-size:14px;font-weight:600;margin:0 0 8px;color:var(--ink);">Documented Sinkhole &amp; Subsidence Incidents in Vicinity</h4>
+        <div class="sinkhole-table-wrap">
+          <table class="sinkhole-table">
+            <thead>
+              <tr>
+                <th>Reference ID</th>
+                <th>Distance / Direction</th>
+                <th>Date</th>
+                <th>Dimensions</th>
+                <th>Survey Notes &amp; Damage</th>
+              </tr>
+            </thead>
+            <tbody id="sinkhole-incidents-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="note" id="sinkhole-note"></p>
+    </section>
+
+    <!-- 07 Nearby Historical Disasters -->
+    <section class="block">
+      <h2><span class="n">07</span>Nearby Historical Loss Events</h2>
+      <p id="disaster-intro"></p>
+      <div class="timeline" id="disaster-timeline"></div>
+      <p class="note">Source: FEMA Disaster Declarations Summary (OpenFEMA), filtered to this county since 2000.</p>
+    </section>
+
+    <!-- 08 EPA Environmental Hazards -->
+    <section class="block">
+      <h2><span class="n">08</span>EPA Contamination &amp; Environmental Hazards</h2>
+      <p id="epa-intro"></p>
+      <div class="timeline" id="epa-list"></div>
+      <p class="note">Superfund (NPL) sites within 3 miles: EPA's ArcGIS-hosted layer. Other EPA facilities within 1 mile: EPA Facility Registry Service.</p>
+    </section>
+
+    <!-- 09 Insurance Cost Range -->
+    <section class="block">
+      <h2><span class="n">09</span>Estimated Insurance Cost Range</h2>
+      <p>Illustrative annual premium ranges for a home valued around <span id="ins-homeval-echo">$350,000</span>, based on flood zone, wind exposure tier, and local hazard frequency. These figures represent an initial screening range, not a formal binder quote.</p>
+      <div class="datarow" style="margin-top:22px;">
+        <div style="flex:1;min-width:220px;" class="ins-range">
+          <div class="lbl">Homeowners (incl. wind) — <span id="ins-deductible-echo">2%</span> hurricane deductible ≈ <span id="ins-deductible-dollars">—</span></div>
+          <div class="amt" id="ins-home">—</div>
+        </div>
+        <div style="flex:1;min-width:220px;" class="ins-range">
+          <div class="lbl">Flood (NFIP-style)</div>
+          <div class="amt" id="ins-flood">—</div>
+        </div>
+      </div>
+      <div class="ins-total">
+        <div class="lbl">Combined estimated annual range</div>
+        <div class="amt" id="ins-total">—</div>
+      </div>
+      <p class="note" id="flood-lender-note" style="display:none;color:var(--risk-high);font-style:normal;"></p>
+      <p class="note">Actual premiums depend on carrier underwriting, elevation certificate, building construction type, deductible, and coverage limits.</p>
+    </section>
+
+    <footer class="disclaim">
+      <p><strong>How to read this report.</strong> This is a diligence screening tool, not a substitute for a flood elevation certificate, wind mitigation inspection, geotechnical soil boring/sinkhole testing, or licensed insurance quote. Flood zone data is from FEMA NFHL; wind estimates are derived from coastal climatology; wildfire, earthquake, and tornado ratings are from FEMA's National Risk Index; sinkhole risk is evaluated at the specific coordinate level using USGS National Karst bedrock layers, Florida Geological Survey Subsidence Incident records, Pennsylvania DCNR, and Kentucky Geological Survey LiDAR inventories.</p>
+      <p id="footer-generated">Generated —</p>
+    </footer>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
