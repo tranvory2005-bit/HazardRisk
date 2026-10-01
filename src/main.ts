@@ -227,14 +227,48 @@ function worldTopoUrl(lat: number, lon: number, buf: number, w: number, h: numbe
 
 // --- Geocoding ---
 async function geocode(address: string) {
-  const url =
+  // 1. Primary: ArcGIS World Geocoding Service (Fast, public CORS support, resilient on GitHub Pages)
+  try {
+    const arcUrl =
+      'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates' +
+      '?singleLine=' +
+      encodeURIComponent(address) +
+      '&f=json&outFields=Addr_type,Match_addr,StAddr,City,Subregion,Region,Postal,Country' +
+      '&maxLocations=1';
+    const arcRes = await fetchWithTimeout(arcUrl, undefined, 7000);
+    if (arcRes.ok) {
+      const arcData = await arcRes.json();
+      if (arcData?.candidates && arcData.candidates.length > 0) {
+        const cand = arcData.candidates[0];
+        const stateName = cand.attributes?.Region || '';
+        const stateAbbr = stateNameToAbbr(stateName) || stateName;
+        return {
+          lat: String(cand.location.y),
+          lon: String(cand.location.x),
+          display_name: cand.address || cand.attributes?.Match_addr || address,
+          address: {
+            state: stateName,
+            county: cand.attributes?.Subregion || '',
+            city: cand.attributes?.City || '',
+            postcode: cand.attributes?.Postal || '',
+            'ISO3166-2-lvl4': stateAbbr ? `US-${stateAbbr}` : ''
+          }
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('ArcGIS geocoding attempt failed, trying Nominatim fallback...', err);
+  }
+
+  // 2. Fallback: OpenStreetMap Nominatim
+  const nomUrl =
     'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=us&q=' +
     encodeURIComponent(address);
-  const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 9000);
-  if (!res.ok) throw new Error('geocode-http-' + res.status);
-  const data = await res.json();
-  if (!data || !data.length) throw new Error('geocode-empty');
-  return data[0];
+  const nomRes = await fetchWithTimeout(nomUrl, { headers: { Accept: 'application/json' } }, 9000);
+  if (!nomRes.ok) throw new Error('geocode-http-' + nomRes.status);
+  const nomData = await nomRes.json();
+  if (!nomData || !nomData.length) throw new Error('geocode-empty');
+  return nomData[0];
 }
 
 // --- Flood Zone Lookup ---
@@ -2723,11 +2757,21 @@ export async function downloadPDF() {
 (window as any).highlightSinkholeInList = highlightSinkholeInList;
 
 // DOM ready initialization
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   const addrInput = document.getElementById('address-input');
   if (addrInput) {
     addrInput.addEventListener('keydown', (e: Event) => {
-      if ((e as KeyboardEvent).key === 'Enter') runReport();
+      if ((e as KeyboardEvent).key === 'Enter') {
+        e.preventDefault();
+        runReport();
+      }
+    });
+  }
+  const goBtn = document.getElementById('go-btn');
+  if (goBtn) {
+    goBtn.addEventListener('click', (e: Event) => {
+      e.preventDefault();
+      runReport();
     });
   }
   const incFlood = document.getElementById('include-flood');
@@ -2736,4 +2780,10 @@ document.addEventListener('DOMContentLoaded', () => {
       floodManuallySet = true;
     });
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
